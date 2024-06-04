@@ -1,0 +1,66 @@
+WITH Youtube AS(
+
+
+SELECT ID,SNIPPET_TITLE AS Title, 
+LEN(SNIPPET_TITLE)AS "Length of Title",
+SNIPPET_DESCRIPTION AS Description,
+S.SEQ,
+CONCAT(
+        UPPER(LEFT(REPLACE(REPLACE(S.VALUE,'[',''),']',''),1)),
+        LOWER(SUBSTRING(REPLACE(REPLACE(S.VALUE,'[',''),']',''), 2,         
+        LEN(REPLACE(REPLACE(S.VALUE,'[',''),']','')) - 1))) AS Tag,
+REPLACE(CONTENT_DETAILS_DURATION, 'PT','') AS Duration,
+STATISTICS_VIEW_COUNT AS Views
+
+
+FROM SQL_HACKATHON.YOUTUBE_ANALYTICS.VIDEO 
+LEFT JOIN LATERAL SPLIT_TO_TABLE(SNIPPET_TAGS,', ') as S
+
+),
+Duration as (
+
+SELECT 
+id,
+content_details_duration,
+-- SUBSTRING(content_details_duration, CHARINDEX('PT', content_details_duration) + 2, CHARINDEX('M', content_details_duration) - CHARINDEX('PT', content_details_duration) - 2) AS minutes,
+--     SUBSTRING(content_details_duration, CHARINDEX('M', content_details_duration) + 1, CHARINDEX('S', content_details_duration) - CHARINDEX('M', content_details_duration) - 1)  AS seconds
+    (
+        CASE
+            WHEN 
+CHARINDEX('H', content_details_duration) > 0 THEN
+                SUBSTRING(content_details_duration, CHARINDEX('PT', content_details_duration) + 2, CHARINDEX('H', content_details_duration) - CHARINDEX('PT', content_details_duration) - 2)
+            ELSE
+                '0' END
+        
+    ) AS hours,
+    (
+        CASE
+            WHEN 
+CHARINDEX('H', content_details_duration) > 0 THEN
+                SUBSTRING(content_details_duration, CHARINDEX('H', content_details_duration) + 1, CHARINDEX('M', content_details_duration) - CHARINDEX('H', content_details_duration) - 1)
+            ELSE
+                SUBSTRING(content_details_duration, CHARINDEX('PT', content_details_duration) + 2, CHARINDEX('M', content_details_duration) - CHARINDEX('PT', content_details_duration) - 2) END
+        
+    ) AS minutes,
+    (
+        CASE
+            WHEN 
+CHARINDEX('M', content_details_duration) > 0 THEN
+                SUBSTRING(content_details_duration, CHARINDEX('M', content_details_duration) + 1, CHARINDEX('S', content_details_duration) - CHARINDEX('M', content_details_duration) - 1)
+            ELSE
+                '0' END
+       
+    ) AS seconds
+
+FROM video
+
+
+)
+
+SELECT
+id,
+(CASE WHEN hours='' THEN 0 ELSE hours END)::int as hours,
+(CASE WHEN minutes='' THEN 0 ELSE minutes END)::int as minutes ,
+(CASE WHEN seconds='' THEN 0 ELSE seconds END)::int as seconds
+FROM Duration
+
